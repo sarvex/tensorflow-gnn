@@ -165,8 +165,10 @@ class HyperAdjacencySpec(gp.GraphPieceSpecBase):
     Returns:
       A `HyperAdjacencySpec` TypeSpec.
     """
-    if not (index_spec.shape.rank > 0 and
-            index_spec.dtype in (tf.int32, tf.int64)):
+    if index_spec.shape.rank <= 0 or index_spec.dtype not in (
+        tf.int32,
+        tf.int64,
+    ):
       raise ValueError(
           'Index spec must have rank > 0 and dtype in (tf.int32, tf.int64),'
           f' got {index_spec}')
@@ -347,11 +349,11 @@ def _validate_indices(indices: Indices) -> Indices:
     if index.dtype not in (tf.int32, tf.int64):
       raise ValueError((f'Adjacency indices ({tag_0}, {name_0}) must have '
                         f'tf.int32 or tf.int64 dtype, got {index.dtype}'))
-    if isinstance(index, tf.RaggedTensor):
-      if index.flat_values.shape.rank != 1:
-        raise ValueError(
-            (f'Adjacency indices ({tag_0}, {name_0}) as ragged tensor must'
-             f' have flat values rank 1, got {index.flat_values.shape.rank}'))
+    if (isinstance(index, tf.RaggedTensor)
+        and index.flat_values.shape.rank != 1):
+      raise ValueError(
+          (f'Adjacency indices ({tag_0}, {name_0}) as ragged tensor must'
+           f' have flat values rank 1, got {index.flat_values.shape.rank}'))
 
   def check_compatibility(tag_0, name_0, index_0, tag_i, name_i, index_i):
     err_message = ('Adjacency indices are not compatible:'

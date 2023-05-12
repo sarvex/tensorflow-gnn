@@ -549,7 +549,7 @@ class GraphPieceSpecBase(type_spec.BatchableTypeSpec, metaclass=abc.ABCMeta):
     # pylint: disable=protected-access
     tensor_list = list(tensor_list)
 
-    flat_values = list()
+    flat_values = []
     for spec in tf.nest.flatten(self._data_spec):
       spec = _box_spec(self.rank, spec, self.indices_dtype)
       num_tensors_for_feature = len(spec._flat_tensor_specs)

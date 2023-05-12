@@ -17,21 +17,27 @@ class SchemaUtilsTest(tf.test.TestCase):
                                            schema_pb2.GraphSchema())
 
     self.assertSetEqual(
-        set([('nodes', 'fruits'), ('edges', 'tastelike')]),
-        set((stype, sname) for stype, sname, _ in su.iter_sets(schema)))
+        {('nodes', 'fruits'), ('edges', 'tastelike')},
+        {(stype, sname)
+         for stype, sname, _ in su.iter_sets(schema)},
+    )
 
     # pylint: disable=pointless-statement
     schema.context.features['mutate_this']
     self.assertSetEqual(
-        set([('context', ''), ('nodes', 'fruits'), ('edges', 'tastelike')]),
-        set((stype, sname) for stype, sname, _ in su.iter_sets(schema)))
+        {('context', ''), ('nodes', 'fruits'), ('edges', 'tastelike')},
+        {(stype, sname)
+         for stype, sname, _ in su.iter_sets(schema)},
+    )
 
   def test_iter_features(self):
     schema = test_utils.get_proto_resource('testdata/homogeneous/citrus.pbtxt',
                                            schema_pb2.GraphSchema())
     self.assertSetEqual(
-        set([('nodes', 'fruits'), ('edges', 'tastelike')]),
-        set((stype, sname) for stype, sname, _ in su.iter_sets(schema)))
+        {('nodes', 'fruits'), ('edges', 'tastelike')},
+        {(stype, sname)
+         for stype, sname, _ in su.iter_sets(schema)},
+    )
 
 
 class SchemaToGraphTensorSpecTest(tf.test.TestCase, parameterized.TestCase):

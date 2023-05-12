@@ -29,15 +29,14 @@ def encode_subgraph_to_example(schema: gnn.GraphSchema,
   for key, feature in schema.context.features.items():
     feature = subgraph.features.feature.get(key, None)
     if feature is not None:
-      newkey = "context/{}".format(key)
+      newkey = f"context/{key}"
       example.features.feature[newkey].CopyFrom(feature)
 
-  # Prepare to store node and edge features.
-  node_features_dicts: Dict[str, Dict[str, Feature]] = {}
   edge_features_dicts: Dict[str, Dict[str, Feature]] = {}
-  for nset_name, nset_obj in schema.node_sets.items():
-    node_features_dicts[nset_name] = _prepare_feature_dict(
-        nset_name, nset_obj, "nodes", example)
+  node_features_dicts: Dict[str, Dict[str, Feature]] = {
+      nset_name: _prepare_feature_dict(nset_name, nset_obj, "nodes", example)
+      for nset_name, nset_obj in schema.node_sets.items()
+  }
   for eset_name, eset_obj in schema.edge_sets.items():
     edge_features_dicts[eset_name] = _prepare_feature_dict(
         eset_name, eset_obj, "edges", example)
@@ -49,7 +48,7 @@ def encode_subgraph_to_example(schema: gnn.GraphSchema,
     by_node_set_name[node.node_set_name].append(node)
   index_map: Dict[bytes, int] = {}
   for node_lists in by_node_set_name.values():
-    index_map.update({node.id: i for i, node in enumerate(node_lists)})
+    index_map |= {node.id: i for i, node in enumerate(node_lists)}
 
   # Iterate over the nodes and edges.
   node_counter = collections.defaultdict(int)
@@ -66,11 +65,11 @@ def encode_subgraph_to_example(schema: gnn.GraphSchema,
       target_idx = index_map.get(edge.neighbor_id, None)
       if target_idx is None:
         # Fail on edge references to a node that isn't in the graph.
-        raise ValueError("Edge to node outside subgraph: '{}': {}".format(
-            edge.neighbor_id, subgraph))
+        raise ValueError(
+            f"Edge to node outside subgraph: '{edge.neighbor_id}': {subgraph}")
 
-      source_name = "edges/{}.{}".format(edge.edge_set_name, gnn.SOURCE_NAME)
-      target_name = "edges/{}.{}".format(edge.edge_set_name, gnn.TARGET_NAME)
+      source_name = f"edges/{edge.edge_set_name}.{gnn.SOURCE_NAME}"
+      target_name = f"edges/{edge.edge_set_name}.{gnn.TARGET_NAME}"
       example.features.feature[source_name].int64_list.value.append(source_idx)
       example.features.feature[target_name].int64_list.value.append(target_idx)
       edge_counter[edge.edge_set_name] += 1
@@ -81,10 +80,10 @@ def encode_subgraph_to_example(schema: gnn.GraphSchema,
 
   # Produce size features.
   for node_set_name, num_nodes in node_counter.items():
-    node_size_name = "nodes/{}.{}".format(node_set_name, gnn.SIZE_NAME)
+    node_size_name = f"nodes/{node_set_name}.{gnn.SIZE_NAME}"
     example.features.feature[node_size_name].int64_list.value.append(num_nodes)
   for edge_set_name, num_edges in edge_counter.items():
-    edge_size_name = "edges/{}.{}".format(edge_set_name, gnn.SIZE_NAME)
+    edge_size_name = f"edges/{edge_set_name}.{gnn.SIZE_NAME}"
     example.features.feature[edge_size_name].int64_list.value.append(num_edges)
 
   # Check the feature sizes (in aggregate).
@@ -97,8 +96,8 @@ def encode_subgraph_to_example(schema: gnn.GraphSchema,
         out_length = get_feature_length(out_feature)
         if num > 0 and out_length % num != 0:
           raise ValueError(
-              "Invalid number ({}) of features '{}' for set '{}' in subgraph '{}' for schema '{}'"
-              .format(out_length, feature_name, set_name, subgraph, schema))
+              f"Invalid number ({out_length}) of features '{feature_name}' for set '{set_name}' in subgraph '{subgraph}' for schema '{schema}'"
+          )
 
   strip_empty_features(example)
   return example
@@ -109,14 +108,12 @@ _FEATURE_FIELDS = frozenset(["float_list", "int64_list", "bytes_list"])
 
 def strip_empty_features(example: Example):
   """Remove the empty features. Mutates in place."""
-  remove_list = []
-  for name, feature in example.features.feature.items():
-    # pylint: disable=g-explicit-length-test
-    if any(((feature.HasField(attrname) and
-             len(getattr(feature, attrname).value) > 0)
-            for attrname in _FEATURE_FIELDS)):
-      continue
-    remove_list.append(name)
+  remove_list = [
+      name for name, feature in example.features.feature.items()
+      if not any(((feature.HasField(attrname)
+                   and len(getattr(feature, attrname).value) > 0)
+                  for attrname in _FEATURE_FIELDS))
+  ]
   for remove in remove_list:
     del example.features.feature[remove]
 
@@ -124,10 +121,12 @@ def strip_empty_features(example: Example):
 def get_feature_values(
     feature: Feature) -> Optional[Union[List[float], List[int], List[bytes]]]:
   """Return the values of the feature, regardless of type."""
-  for attr_name in "float_list", "bytes_list", "int64_list":
-    if feature.HasField(attr_name):
-      return getattr(feature, attr_name).value
-  return None
+  return next(
+      (getattr(feature, attr_name).value
+       for attr_name in ("float_list", "bytes_list", "int64_list")
+       if feature.HasField(attr_name)),
+      None,
+  )
 
 
 def get_feature_length(feature: Feature) -> int:
@@ -141,7 +140,7 @@ def _prepare_feature_dict(set_name: str, set_obj: Any, prefix: str,
   """Prepare a dict of feature name to a Feature object."""
   features_dict = {}
   for feature_name in set_obj.features.keys():
-    name = "{}/{}.{}".format(prefix, set_name, feature_name)
+    name = f"{prefix}/{set_name}.{feature_name}"
     features_dict[feature_name] = example.features.feature[name]
   return features_dict
 
@@ -154,6 +153,6 @@ def _copy_features(sg_features: tf.train.Feature,
     if sg_feature is None:
       # Feature is empty for that node. Fail for now, ragged tensors are not
       # supported by this conversion routine.
-      raise ValueError("Feature '{}' is missing from input: {}".format(
-          feature_name, sg_features))
+      raise ValueError(
+          f"Feature '{feature_name}' is missing from input: {sg_features}")
     ex_feature.MergeFrom(sg_feature)

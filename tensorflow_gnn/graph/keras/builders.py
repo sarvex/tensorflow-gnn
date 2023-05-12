@@ -90,7 +90,7 @@ class ConvGNNBuilder:
           target_to_inputs[target_node_set][
               edge_set_name] = self._convolutions_factory(edge_set_name)
 
-      node_set_updates = dict()
+      node_set_updates = {}
       for node_set in target_node_sets:
         next_state = self._nodes_next_state_factory(node_set)
         node_set_updates[node_set] = graph_update_lib.NodeSetUpdate(

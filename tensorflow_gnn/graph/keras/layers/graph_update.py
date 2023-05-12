@@ -298,11 +298,10 @@ class EdgeSetUpdate(tf.keras.layers.Layer):
 
   def call(self, graph: gt.GraphTensor,
            edge_set_name: const.EdgeSetName) -> gt.GraphTensor:
-    next_state_inputs = []
-    # Input from the edges themselves.
-    next_state_inputs.append(
+    next_state_inputs = [
         _get_feature_or_features(graph.edge_sets[edge_set_name],
-                                 self._edge_input_feature))
+                                 self._edge_input_feature)
+    ]
     # Input from incident nodes.
     input_from_incident_nodes = {}
     if self._node_input_feature is not None:
@@ -383,16 +382,14 @@ class NodeSetUpdate(tf.keras.layers.Layer):
 
   def call(self, graph: gt.GraphTensor,
            node_set_name: const.NodeSetName) -> gt.GraphTensor:
-    next_state_inputs = []
-    # Input from the nodes themselves.
-    next_state_inputs.append(
+    next_state_inputs = [
         _get_feature_or_features(graph.node_sets[node_set_name],
-                                 self._node_input_feature))
-    # Input from edge sets.
-    input_from_edge_sets = {}
-    for edge_set_name, input_fn in sorted(self._edge_set_inputs.items()):
-      input_from_edge_sets[edge_set_name] = input_fn(
-          graph, edge_set_name=edge_set_name)
+                                 self._node_input_feature)
+    ]
+    input_from_edge_sets = {
+        edge_set_name: input_fn(graph, edge_set_name=edge_set_name)
+        for edge_set_name, input_fn in sorted(self._edge_set_inputs.items())
+    }
     next_state_inputs.append(input_from_edge_sets)
     # Input from context.
     next_state_inputs.append(tf.nest.map_structure(
@@ -470,15 +467,13 @@ class ContextUpdate(tf.keras.layers.Layer):
         **super().get_config())
 
   def call(self, graph: gt.GraphTensor) -> gt.GraphTensor:
-    next_state_inputs = []
-    # Input from the context itself.
-    next_state_inputs.append(_get_feature_or_features(
-        graph.context, self._context_input_feature))
-    # Input from node sets.
-    input_from_node_sets = {}
-    for node_set_name, input_fn in sorted(self._node_set_inputs.items()):
-      input_from_node_sets[node_set_name] = input_fn(
-          graph, node_set_name=node_set_name)
+    next_state_inputs = [
+        _get_feature_or_features(graph.context, self._context_input_feature)
+    ]
+    input_from_node_sets = {
+        node_set_name: input_fn(graph, node_set_name=node_set_name)
+        for node_set_name, input_fn in sorted(self._node_set_inputs.items())
+    }
     next_state_inputs.append(input_from_node_sets)
     # Input from edge sets.
     input_from_edge_sets = {}

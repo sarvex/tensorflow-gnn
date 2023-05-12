@@ -30,7 +30,7 @@ def get_resource(filename: str) -> str:
   # pylint: disable=unreachable
   filename = path.join(find_root(__file__), filename)
   if not path.exists(filename):
-    raise OSError("Resource {} does not exist.".format(filename))
+    raise OSError(f"Resource {filename} does not exist.")
   return filename
 
 
@@ -52,8 +52,7 @@ def get_resource_dir(dirname: str) -> str:
   res_dirname = path.join(find_root(dirname), dirname)
   if not path.isdir(res_dirname):
     raise OSError(
-        "Resource path {} does not exist or is not a directory".format(
-            res_dirname))
+        f"Resource path {res_dirname} does not exist or is not a directory")
   return res_dirname
 
 

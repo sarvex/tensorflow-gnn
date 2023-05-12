@@ -114,17 +114,25 @@ class ReadoutTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(value, readout(graph))
 
   def _make_test_graph_134(self, values):
-    graph = gt.GraphTensor.from_pieces(
+    return gt.GraphTensor.from_pieces(
         context=gt.Context.from_fields(features={"value": values["context"]}),
-        node_sets={"nodes": gt.NodeSet.from_fields(
-            sizes=tf.constant([3]), features={"value": values["nodes"]})},
-        edge_sets={"edges": gt.EdgeSet.from_fields(
-            sizes=tf.constant([4]),
-            features={"value": values["edges"]},
-            adjacency=adj.Adjacency.from_indices(   # 0 <-> 1 <-> 2.
-                ("nodes", tf.constant([0, 1, 1, 2])),
-                ("nodes", tf.constant([1, 0, 2, 1]))))})
-    return graph
+        node_sets={
+            "nodes":
+            gt.NodeSet.from_fields(sizes=tf.constant([3]),
+                                   features={"value": values["nodes"]})
+        },
+        edge_sets={
+            "edges":
+            gt.EdgeSet.from_fields(
+                sizes=tf.constant([4]),
+                features={"value": values["edges"]},
+                adjacency=adj.Adjacency.from_indices(  # 0 <-> 1 <-> 2.
+                    ("nodes", tf.constant([0, 1, 1, 2])),
+                    ("nodes", tf.constant([1, 0, 2, 1])),
+                ),
+            )
+        },
+    )
 
 
 class ReadoutFirstNodeTest(tf.test.TestCase, parameterized.TestCase):
@@ -183,16 +191,22 @@ class ReadoutFirstNodeTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(value, readout(graph))
 
   def _make_test_graph_22(self):
-    graph = gt.GraphTensor.from_pieces(
-        node_sets={"nodes": gt.NodeSet.from_fields(
-            sizes=tf.constant([2, 2]),
-            features={
-                "dense": tf.constant([[11.], [12.], [13.], [14.]]),
-                "ragged": tf.ragged.constant([
-                    [110., 111.], [120.], [130.], [140., 141.]]),
-                const.DEFAULT_STATE_NAME: tf.constant([[1.], [2.], [3.], [4.]]),
-            })})
-    return graph
+    return gt.GraphTensor.from_pieces(
+        node_sets={
+            "nodes":
+            gt.NodeSet.from_fields(
+                sizes=tf.constant([2, 2]),
+                features={
+                    "dense":
+                    tf.constant([[11.0], [12.0], [13.0], [14.0]]),
+                    "ragged":
+                    tf.ragged.constant([[110.0, 111.0], [120.0], [130.0],
+                                        [140.0, 141.0]]),
+                    const.DEFAULT_STATE_NAME:
+                    tf.constant([[1.0], [2.0], [3.0], [4.0]]),
+                },
+            )
+        })
 
 
 class BroadcastTest(tf.test.TestCase, parameterized.TestCase):

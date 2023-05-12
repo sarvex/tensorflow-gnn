@@ -47,13 +47,13 @@ def guess_file_format(filename: str) -> str:
   elif re.search(r"[_.-]csv\b", filename):
     return "csv"
   else:
-    raise ValueError("Could not guess file format for: {}".format(filename))
+    raise ValueError(f"Could not guess file format for: {filename}")
 
 
 def get_base_filename(file_pattern: str) -> str:
   """Return the file pattern without the sharding suffixes."""
   match = re.fullmatch(r"(.*)(@\d+|-[0-9\?]{5}-of-\d{5})", file_pattern)
-  return match.group(1) if match else file_pattern
+  return match[1] if match else file_pattern
 
 
 def expand_sharded_pattern(file_pattern: str) -> str:
@@ -69,11 +69,10 @@ def expand_sharded_pattern(file_pattern: str) -> str:
   Returns:
     A globbing pattern that will match the sharded files.
   """
-  match = re.fullmatch(r"(.*)@(\d+)", file_pattern)
-  if not match:
+  if match := re.fullmatch(r"(.*)@(\d+)", file_pattern):
+    return "{}-?????-of-{:05d}".format(match[1], int(match[2]))
+  else:
     return file_pattern
-  num_shards = int(match.group(2))
-  return "{}-?????-of-{:05d}".format(match.group(1), num_shards)
 
 
 def get_sharded_pattern_args(pattern: str) -> Dict[str, Any]:
@@ -89,23 +88,23 @@ def get_sharded_pattern_args(pattern: str) -> Dict[str, Any]:
   Returns:
     A dict of arguments for filename, num shards, and template.
   """
-  # TODO(blais): Eventually support file suffixes.
-  match = re.fullmatch(r"(.*)@(\d+)", pattern)
-  if match:
+  if match := re.fullmatch(r"(.*)@(\d+)", pattern):
     # Beam would unpack automatically for internal containers, but we need this
     # for the open source implementation of the Beam runner.
-    return dict(file_path_prefix=match.group(1),
-                num_shards=int(match.group(2)),
-                shard_name_template="-SSSSS-of-NNNNN")
+    return dict(
+        file_path_prefix=match[1],
+        num_shards=int(match[2]),
+        shard_name_template="-SSSSS-of-NNNNN",
+    )
+  if match := re.fullmatch(r"(.*)-(?:\d|\?){5}-of-(\d{5})", pattern):
+    return dict(
+        file_path_prefix=match[1],
+        num_shards=int(match[2]),
+        shard_name_template="-SSSSS-of-NNNNN",
+    )
   else:
-    match = re.fullmatch(r"(.*)-(?:\d|\?){5}-of-(\d{5})", pattern)
-    if match:
-      return dict(file_path_prefix=match.group(1),
-                  num_shards=int(match.group(2)),
-                  shard_name_template="-SSSSS-of-NNNNN")
-    else:
-      return dict(file_path_prefix=pattern,
-                  num_shards=None, shard_name_template="")
+    return dict(file_path_prefix=pattern,
+                num_shards=None, shard_name_template="")
 
 
 def find_schema_filename(file_or_dir: str) -> str:
@@ -114,8 +113,8 @@ def find_schema_filename(file_or_dir: str) -> str:
     pbtxts = [filename for filename in gfile.listdir(file_or_dir)
               if filename.endswith(".pbtxt")]
     if len(pbtxts) != 1:
-      raise ValueError("Could not find schema pbtxt file in '{}': {}".format(
-          file_or_dir, pbtxts))
+      raise ValueError(
+          f"Could not find schema pbtxt file in '{file_or_dir}': {pbtxts}")
     file_or_dir = path.join(file_or_dir, pbtxts[0])
   return file_or_dir
 
@@ -284,8 +283,7 @@ class ReadTable(beam.PTransform):
               | beam.Map(csv_line_to_example, header,
                          converters=self.converters))
     else:
-      raise NotImplementedError(
-          "Format not supported: {}".format(self.file_format))
+      raise NotImplementedError(f"Format not supported: {self.file_format}")
 
 
 class WriteTable(beam.PTransform):
@@ -322,8 +320,7 @@ class WriteTable(beam.PTransform):
       return (pcoll
               | beam.io.tfrecordio.WriteToTFRecord(coder=coder, **kwargs))
     else:
-      raise NotImplementedError(
-          "Format not supported: {}".format(self.file_format))
+      raise NotImplementedError(f"Format not supported: {self.file_format}")
 
 
 # Fields in the CSV files aren't expected to start with the special '#' feature
@@ -346,10 +343,10 @@ def csv_line_to_example(
   # Reuse the CSV module to handle quotations properly. Unfortunately csv reader
   # objects aren't pickleable, so this is less than ideal.
   row = next(iter(csv.reader([line])))
-  if check_row_length:
-    if len(row) != len(header):
-      raise ValueError("Invalid row length: {} != {} from header: '{}'".format(
-          len(row), len(header), header))
+  if check_row_length and len(row) != len(header):
+    raise ValueError(
+        f"Invalid row length: {len(row)} != {len(header)} from header: '{header}'"
+    )
 
   # Convert to an example.
   example = Example()

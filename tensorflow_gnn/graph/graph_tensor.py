@@ -192,10 +192,11 @@ class _NodeOrEdgeSet(_GraphPieceWithFeatures):
                          for key, value in features.items()}
     data = {
         _NodeOrEdgeSet._DATAKEY_FEATURES: prepared_features,
-        _NodeOrEdgeSet._DATAKEY_SIZES: sizes
+        _NodeOrEdgeSet._DATAKEY_SIZES: sizes,
+    } | {
+        key: gp.convert_to_tensor_or_ragged(value)
+        for key, value in extra_data.items()
     }
-    data.update({key: gp.convert_to_tensor_or_ragged(value)
-                 for key, value in extra_data.items()})
     return cls._from_data(
         data=data, shape=sizes.shape[:-1], indices_dtype=sizes.dtype)
 
@@ -238,9 +239,8 @@ class _NodeOrEdgeSetSpec(_GraphPieceWithFeaturesSpec):
     assert isinstance(features_spec, Mapping)
     data_spec = {
         _NodeOrEdgeSet._DATAKEY_FEATURES: features_spec,
-        _NodeOrEdgeSet._DATAKEY_SIZES: sizes_spec
-    }
-    data_spec.update(extra_data)
+        _NodeOrEdgeSet._DATAKEY_SIZES: sizes_spec,
+    } | extra_data
     return cls._from_data_spec(
         data_spec, shape=sizes_spec.shape[:-1], indices_dtype=sizes_spec.dtype)
 
@@ -621,8 +621,8 @@ class GraphTensor(gp.GraphPieceBase):
   ) -> 'GraphTensor':
     """Constructs a new `GraphTensor` from context, node sets and edge sets."""
     context = _ifnone(context, Context.from_fields(features={}))
-    node_sets = _ifnone(node_sets, dict()).copy()
-    edge_sets = _ifnone(edge_sets, dict()).copy()
+    node_sets = _ifnone(node_sets, {}).copy()
+    edge_sets = _ifnone(edge_sets, {}).copy()
     indicative_entity = _get_indicative_graph_entity(context, node_sets,
                                                      edge_sets)
     assert isinstance(indicative_entity, _GraphPieceWithFeatures)
@@ -820,8 +820,8 @@ class GraphTensorSpec(gp.GraphPieceSpecBase):
   ) -> 'GraphTensorSpec':
     """Counterpart of `GraphTensor.from_pieces` for values type specs."""
     context_spec = _ifnone(context_spec, ContextSpec.from_field_specs())
-    node_sets_spec = _ifnone(node_sets_spec, dict())
-    edge_sets_spec = _ifnone(edge_sets_spec, dict())
+    node_sets_spec = _ifnone(node_sets_spec, {})
+    edge_sets_spec = _ifnone(edge_sets_spec, {})
     indicative_entity = _get_indicative_graph_entity(context_spec,
                                                      node_sets_spec,
                                                      edge_sets_spec)
@@ -901,9 +901,7 @@ def _get_indicative_graph_entity(
 
   if edge_sets:
     return first_by_name(edge_sets)
-  if node_sets:
-    return first_by_name(node_sets)
-  return context
+  return first_by_name(node_sets) if node_sets else context
 
 
 class _ImmutableMapping(Mapping):
@@ -925,10 +923,7 @@ class _ImmutableMapping(Mapping):
         When data is a generator its values are copied into internal dictionary.
     """
     super().__init__()
-    if isinstance(data, Mapping):
-      self._data = data
-    else:
-      self._data = dict(data)
+    self._data = data if isinstance(data, Mapping) else dict(data)
 
   def __getitem__(self, key):
     return self._data[key]

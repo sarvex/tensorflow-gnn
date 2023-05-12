@@ -178,7 +178,7 @@ class Readout(UpdateInputLayerExtended):
 
   def _get_location(self, *, node_set_name, edge_set_name, from_context):
     """Returns dict of non-None kwargs for selecting the feature location."""
-    result = dict()
+    result = {}
     if node_set_name is not None: result.update(node_set_name=node_set_name)
     if edge_set_name is not None: result.update(edge_set_name=edge_set_name)
     if from_context: result.update(from_context=from_context)
@@ -305,7 +305,7 @@ class ReadoutFirstNode(UpdateInputLayerExtended):
     if self._node_set_name is not None:
       return dict(node_set_name=self._node_set_name)
     else:
-      return dict()
+      return {}
 
   @property
   def feature_name(self) -> Optional[gt.FieldName]:
@@ -421,7 +421,7 @@ class BroadcastPoolBase(UpdateInputLayerExtended):
 
   def _get_location(self, *, node_set_name, edge_set_name):
     """Returns dict of non-None kwargs for selecting the node or edge set."""
-    result = dict()
+    result = {}
     if node_set_name is not None: result.update(node_set_name=node_set_name)
     if edge_set_name is not None: result.update(edge_set_name=edge_set_name)
     if len(result) > 1:
@@ -519,16 +519,13 @@ class Broadcast(BroadcastPoolBase):
         tag, edge_set_name, node_set_name, feature_name)
 
     if tag == const.CONTEXT:
-      if node_set_name is not None:
-        return ops.broadcast_context_to_nodes(
-            graph, node_set_name, feature_name=feature_name)
-      else:
-        return ops.broadcast_context_to_edges(
-            graph, edge_set_name, feature_name=feature_name)
-    else:
-      assert tag in (const.SOURCE, const.TARGET), f"Internal error: tag={tag}"
-      return ops.broadcast_node_to_edges(
-          graph, edge_set_name, tag, feature_name=feature_name)
+      return (ops.broadcast_context_to_nodes(
+          graph, node_set_name, feature_name=feature_name)
+              if node_set_name is not None else ops.broadcast_context_to_edges(
+                  graph, edge_set_name, feature_name=feature_name))
+    assert tag in (const.SOURCE, const.TARGET), f"Internal error: tag={tag}"
+    return ops.broadcast_node_to_edges(
+        graph, edge_set_name, tag, feature_name=feature_name)
 
   def _call_for_edge_set(self, *args, edge_set_name: str, **kwargs):
     """Internal use only: implements UpdateInputLayerExtended."""
@@ -647,16 +644,13 @@ class Pool(BroadcastPoolBase):
                        "to be set at init or call time")
 
     if tag == const.CONTEXT:
-      if node_set_name is not None:
-        return ops.pool_nodes_to_context(
-            graph, node_set_name, reduce_type, feature_name=feature_name)
-      else:
-        return ops.pool_edges_to_context(
-            graph, edge_set_name, reduce_type, feature_name=feature_name)
-    else:
-      assert tag in (const.SOURCE, const.TARGET), f"Internal error: tag={tag}"
-      return ops.pool_edges_to_node(
-          graph, edge_set_name, tag, reduce_type, feature_name=feature_name)
+      return (ops.pool_nodes_to_context(
+          graph, node_set_name, reduce_type, feature_name=feature_name)
+              if node_set_name is not None else ops.pool_edges_to_context(
+                  graph, edge_set_name, reduce_type, feature_name=feature_name))
+    assert tag in (const.SOURCE, const.TARGET), f"Internal error: tag={tag}"
+    return ops.pool_edges_to_node(
+        graph, edge_set_name, tag, reduce_type, feature_name=feature_name)
 
   def _call_for_edge_set(self, *args, edge_set_name: str, **kwargs):
     """Internal use only: implements UpdateInputLayerExtended."""

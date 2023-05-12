@@ -67,17 +67,13 @@ class ReadExamples(beam.PTransform):
               | sstableio.ReadFromSSTable(self.input_pattern)
               | beam.Values())
     else:
-      raise NotImplementedError("Format: {}".format(self.input_format))
+      raise NotImplementedError(f"Format: {self.input_format}")
 
 
 def create_beam_runner(
     runner_name: Optional[str]) -> beam.runners.PipelineRunner:
   """Create appropriate runner."""
-  if runner_name == "direct":
-    runner = direct_runner.DirectRunner()
-  else:
-    runner = None
-  return runner
+  return direct_runner.DirectRunner() if runner_name == "direct" else None
 
 
 def run_pipeline(input_pattern: str,
@@ -93,17 +89,13 @@ def run_pipeline(input_pattern: str,
              | "ProcessExample" >> (beam.FlatMap(process_example, schema)
                                     .with_outputs()))
 
-    # The list of keys from the schema is statically defined and thus allows us
-    # to avoid processing the entire set of features together segregating them
-    # by key in a second stage, for the quantile aggregation. This is more
-    # efficient as we already have the sets separated out.
-    quantiles = {}
-    for key, _ in iter_stats_schema(schema):
-      quantiles[key] = (
-          stats[key]
-          | f"{key}.q" >> beam.ApproximateQuantiles.Globally(num_quantiles + 1)
-          | f"{key}.m" >> beam.Map(lambda q, k=key: (k, q)))
-
+    quantiles = {
+        key:
+        (stats[key]
+         | f"{key}.q" >> beam.ApproximateQuantiles.Globally(num_quantiles + 1)
+         | f"{key}.m" >> beam.Map(lambda q, k=key: (k, q)))
+        for key, _ in iter_stats_schema(schema)
+    }
     _ = (quantiles.values()
          | beam.Flatten()
          | "CombineStats" >> beam.combiners.ToDict()
