@@ -229,9 +229,8 @@ def _flatten_graph_field_specs(piece_spec: gp.GraphPieceSpecBase,
 def _(graph_spec: gt.GraphTensorSpec, prefix: str) -> gc.FieldsSpec:
   """Specialization for GraphTensorSpec."""
   result = {}
-  result.update(
-      _flatten_graph_field_specs(graph_spec.context_spec,
-                                 f'{prefix}{gc.CONTEXT}/'))
+  result |= _flatten_graph_field_specs(graph_spec.context_spec,
+                                       f'{prefix}{gc.CONTEXT}/')
   for name, spec in graph_spec.node_sets_spec.items():
     result.update(
         _flatten_graph_field_specs(spec, f'{prefix}{gc.NODES}/{name}.'))
@@ -249,14 +248,14 @@ def _(context_spec: gt.ContextSpec, prefix: str) -> gc.FieldsSpec:
 @_flatten_graph_field_specs.register(gt.NodeSetSpec)
 def _(node_set_spec: gt.NodeSetSpec, prefix: str) -> gc.FieldsSpec:
   result = {f'{prefix}{gc.SIZE_NAME}': node_set_spec.sizes_spec}
-  result.update(_prefix_keys(node_set_spec.features_spec, prefix))
+  result |= _prefix_keys(node_set_spec.features_spec, prefix)
   return result
 
 
 @_flatten_graph_field_specs.register(gt.EdgeSetSpec)
 def _(edge_set_spec: gt.EdgeSetSpec, prefix: str) -> gc.FieldsSpec:
   result = {f'{prefix}{gc.SIZE_NAME}': edge_set_spec.sizes_spec}
-  result.update(_prefix_keys(edge_set_spec.features_spec, prefix))
+  result |= _prefix_keys(edge_set_spec.features_spec, prefix)
   result.update(
       _flatten_graph_field_specs(edge_set_spec.adjacency_spec, prefix))
   return result
@@ -304,15 +303,16 @@ def _(graph_spec: gt.GraphTensorSpec,
   """Specialization for GraphTensorSpec."""
   context = _unflatten_graph_fields(graph_spec.context_spec, flat_fields,
                                     f'{prefix}{gc.CONTEXT}/')
-  node_sets = {}
-  for name, spec in graph_spec.node_sets_spec.items():
-    node_sets[name] = _unflatten_graph_fields(spec, flat_fields,
-                                              f'{prefix}{gc.NODES}/{name}.')
-  edge_sets = {}
-  for name, spec in graph_spec.edge_sets_spec.items():
-    edge_sets[name] = _unflatten_graph_fields(spec, flat_fields,
-                                              f'{prefix}{gc.EDGES}/{name}.')
-
+  node_sets = {
+      name: _unflatten_graph_fields(spec, flat_fields,
+                                    f'{prefix}{gc.NODES}/{name}.')
+      for name, spec in graph_spec.node_sets_spec.items()
+  }
+  edge_sets = {
+      name: _unflatten_graph_fields(spec, flat_fields,
+                                    f'{prefix}{gc.EDGES}/{name}.')
+      for name, spec in graph_spec.edge_sets_spec.items()
+  }
   return gt.GraphTensor.from_pieces(
       context=context, node_sets=node_sets, edge_sets=edge_sets)
 
@@ -411,7 +411,7 @@ def _restore_types(spec: gt.GraphTensorSpec,
   """
   # pylint: disable=protected-access
   flat_spec = _flatten_graph_field_specs(spec, prefix or '')
-  result = dict()
+  result = {}
   for fname, value in flat_values.items():
     field_dtype = flat_spec[fname].dtype
     if value.dtype != field_dtype:

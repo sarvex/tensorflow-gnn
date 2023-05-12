@@ -80,24 +80,27 @@ def create_graph_spec_from_schema_pb(
       shape=tf.TensorShape([]),
       indices_dtype=indices_dtype)
 
-  nodes_spec = {}
-  for set_name, node in schema.node_sets.items():
-    nodes_spec[set_name] = gt.NodeSetSpec.from_field_specs(
-        sizes_spec=size_value_spec,
-        features_spec=_create_fields_spec_from_schema(node.features, None,
-                                                      indices_dtype))
-
-  edges_spec = {}
-  for set_name, edge in schema.edge_sets.items():
-    edges_spec[set_name] = gt.EdgeSetSpec.from_field_specs(
-        sizes_spec=size_value_spec,
-        adjacency_spec=adjacency.AdjacencySpec.from_incident_node_sets(
-            source_node_set=edge.source,
-            target_node_set=edge.target,
-            index_spec=index_spec),
-        features_spec=_create_fields_spec_from_schema(edge.features, None,
-                                                      indices_dtype))
-
+  nodes_spec = {
+      set_name: gt.NodeSetSpec.from_field_specs(
+          sizes_spec=size_value_spec,
+          features_spec=_create_fields_spec_from_schema(
+              node.features, None, indices_dtype),
+      )
+      for set_name, node in schema.node_sets.items()
+  }
+  edges_spec = {
+      set_name: gt.EdgeSetSpec.from_field_specs(
+          sizes_spec=size_value_spec,
+          adjacency_spec=adjacency.AdjacencySpec.from_incident_node_sets(
+              source_node_set=edge.source,
+              target_node_set=edge.target,
+              index_spec=index_spec,
+          ),
+          features_spec=_create_fields_spec_from_schema(
+              edge.features, None, indices_dtype),
+      )
+      for set_name, edge in schema.edge_sets.items()
+  }
   return gt.GraphTensorSpec.from_piece_specs(
       context_spec=context_spec,
       node_sets_spec=nodes_spec,

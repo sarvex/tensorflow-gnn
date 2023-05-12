@@ -175,8 +175,6 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
     namespace_packages=[],
-    # Make sure to sync the versions of common dependencies (absl-py, numpy,
-    # six, and protobuf) with TF.
     install_requires=[
         'absl-py',
         'apache-beam[gcp]>=2.32',
@@ -198,7 +196,8 @@ setup(
     package_data={'': ['*.proto']},
     zip_safe=False,
     distclass=_BinaryDistribution,
-    description='A library for building scalable graph neural networks in TensorFlow.',
+    description=
+    'A library for building scalable graph neural networks in TensorFlow.',
     long_description=_LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
     keywords='tensorflow gnn graph',
@@ -211,8 +210,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'tfgnn_{}={}:main'.format(libname.split('.')[-1], libname)
+            f"tfgnn_{libname.split('.')[-1]}={libname}:main"
             for libname in console_scripts
-        ],
-    }
+        ]
+    },
 )

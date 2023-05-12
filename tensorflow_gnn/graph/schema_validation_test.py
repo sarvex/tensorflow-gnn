@@ -123,28 +123,21 @@ class GraphValidationTest(tf.test.TestCase):
   @mock.patch.object(logging, 'error')
   def test_validate_schema_reserved_feature_names(self, mock_error):
     # Invalidate feature names on node sets.
-    for name in '#size', '#id':
+    for _ in ('#size', '#id'):
       schema = schema_pb2.GraphSchema()
       _ = schema.node_sets['queries'].features['#size']
       with self.assertRaises(sv.ValidationError):
         sv._validate_schema_reserved_feature_names(schema)
 
     # Invalidate feature names on edge sets.
-    for name in '#size', '#source', '#target':
+    for name in ('#size', '#source', '#target'):
       schema = schema_pb2.GraphSchema()
       _ = schema.edge_sets['documents'].features[name]
-      with self.assertRaises(sv.ValidationError,
-                             msg='Feature: {}'.format(name)):
+      with self.assertRaises(sv.ValidationError, msg=f'Feature: {name}'):
         sv._validate_schema_reserved_feature_names(schema)
 
-    # Check that an error is issued for other features.
-    #
-    # TODO(blais,aferludin): We cannot raise an exception yet because the graph
-    # sampler uses a number of hardcoded features with '#' prefix. Remove those
-    # features from the sampler.
-    name = '#weight'
     schema = schema_pb2.GraphSchema()
-    _ = schema.edge_sets['documents'].features[name]
+    _ = schema.edge_sets['documents'].features['#weight']
     sv._validate_schema_reserved_feature_names(schema)
     mock_error.assert_called()
 

@@ -133,15 +133,13 @@ def _validate_schema_feature_dtypes(schema: schema_pb2.GraphSchema):
   for set_type, set_name, feature_name, feature in su.iter_features(schema):
     if not feature.HasField("dtype"):
       raise ValidationError(
-          "Missing 'dtype' field on {} set '{}' feature '{}'".format(
-              set_type, set_name, feature_name))
+          f"Missing 'dtype' field on {set_type} set '{set_name}' feature '{feature_name}'"
+      )
     if feature.dtype not in {dtype.as_datatype_enum
                              for dtype in VALID_DTYPES}:
       raise ValidationError(
-          ("Invalid 'dtype' field {} on {} set '{}' feature '{}': {}; "
-           "valid types include: {}").format(
-               feature.dtype, set_type, set_name, feature_name, feature.dtype,
-               ", ".join(map(str, VALID_DTYPES))))
+          f"""Invalid 'dtype' field {feature.dtype} on {set_type} set '{set_name}' feature '{feature_name}': {feature.dtype}; valid types include: {", ".join(map(str, VALID_DTYPES))}"""
+      )
 
 
 def _validate_schema_shapes(schema: schema_pb2.GraphSchema):
@@ -149,8 +147,8 @@ def _validate_schema_shapes(schema: schema_pb2.GraphSchema):
   for set_type, set_name, feature_name, feature in su.iter_features(schema):
     if feature.shape.unknown_rank:
       raise ValidationError(
-          "Shapes must have a known rank; on {} set '{}' feature '{}'".format(
-              set_type, set_name, feature_name))
+          f"Shapes must have a known rank; on {set_type} set '{set_name}' feature '{feature_name}'"
+      )
 
 
 def _warn_schema_scalar_shapes(schema: schema_pb2.GraphSchema):
@@ -165,14 +163,13 @@ def _warn_schema_scalar_shapes(schema: schema_pb2.GraphSchema):
   Returns:
     A list of ValidationError warnings to issue conditionally.
   """
-  warnings = []
-  for set_type, set_name, feature_name, feature in su.iter_features(schema):
-    if len(feature.shape.dim) == 1 and feature.shape.dim[0].size == 1:
-      warnings.append(ValidationError(
-          "Unnecessary shape of [1] in {} set '{}' / '{}'; use scalar feature "
-          "instead (i.e., specify an empty shape proto).".format(
-              set_type, set_name, feature_name)))
-  return warnings
+  return [
+      ValidationError(
+          f"Unnecessary shape of [1] in {set_type} set '{set_name}' / '{feature_name}'; use scalar feature instead (i.e., specify an empty shape proto)."
+      )
+      for set_type, set_name, feature_name, feature in su.iter_features(schema)
+      if len(feature.shape.dim) == 1 and feature.shape.dim[0].size == 1
+  ]
 
 
 def _validate_schema_descriptions(schema: schema_pb2.GraphSchema):
@@ -182,15 +179,13 @@ def _validate_schema_descriptions(schema: schema_pb2.GraphSchema):
   for set_type, set_name, feature_name, feature in su.iter_features(schema):
     if feature.HasField("description"):
       continue
-    for dim in feature.shape.dim:
-      if dim.name:
-        name_fields.append((set_type, set_name, feature_name))
+    name_fields.extend((set_type, set_name, feature_name)
+                       for dim in feature.shape.dim if dim.name)
   if name_fields:
     field_names = ",".join([str(ntuple) for ntuple in name_fields])
     raise ValidationError(
-        "The following features are incorrectly locating the description on "
-        "the shape dimensions 'name' field: {}; use the 'description' field of "
-        "the feature instead".format(field_names))
+        f"The following features are incorrectly locating the description on the shape dimensions 'name' field: {field_names}; use the 'description' field of the feature instead"
+    )
 
 
 def _validate_schema_reserved_feature_names(schema: schema_pb2.GraphSchema):
@@ -202,15 +197,14 @@ def _validate_schema_reserved_feature_names(schema: schema_pb2.GraphSchema):
   for set_type, set_name, feature_dict in node_set_dicts + edge_set_dicts:
     if const.SIZE_NAME in feature_dict:
       raise ValidationError(
-          "Feature '{}' from {} set '{}' is reserved".format(
-              const.SIZE_NAME, set_type, set_name))
+          f"Feature '{const.SIZE_NAME}' from {set_type} set '{set_name}' is reserved"
+      )
   for set_type, set_name, feature_dict in edge_set_dicts:
     for name in const.SOURCE_NAME, const.TARGET_NAME:
       # Invalidate reserved feature names.
       if name in feature_dict:
         raise ValidationError(
-            "Feature '{}' from {} set '{}' is reserved".format(
-                name, set_type, set_name))
+            f"Feature '{name}' from {set_type} set '{set_name}' is reserved")
 
   # TODO(blais): Make this compulsory after we remove the hardcoded
   # feature names from the sampler.
@@ -225,13 +219,15 @@ def _validate_schema_context_references(schema: schema_pb2.GraphSchema):
   for set_name, node_set in schema.node_sets.items():
     for feature in node_set.context:
       if feature not in schema.context.features:
-        raise ValidationError("Context feature '{}' does not exist "
-                              "(from node set '{}')".format(feature, set_name))
+        raise ValidationError(
+            f"Context feature '{feature}' does not exist (from node set '{set_name}')"
+        )
   for set_name, edge_set in schema.edge_sets.items():
     for feature in edge_set.context:
       if feature not in schema.context.features:
-        raise ValidationError("Context feature '{}' does not exist "
-                              "(from edge set '{}')".format(feature, set_name))
+        raise ValidationError(
+            f"Context feature '{feature}' does not exist (from edge set '{set_name}')"
+        )
 
 
 def _validate_schema_node_set_references(schema: schema_pb2.GraphSchema):
@@ -240,8 +236,8 @@ def _validate_schema_node_set_references(schema: schema_pb2.GraphSchema):
     for feature_name in edge_set.source, edge_set.target:
       if feature_name not in schema.node_sets:
         raise ValidationError(
-            "Edge set '{}' referencing unknown node set '{}'".format(
-                set_name, feature_name))
+            f"Edge set '{set_name}' referencing unknown node set '{feature_name}'"
+        )
 
 
 # TODO(blais): This code could eventually be folded into the various
@@ -282,19 +278,18 @@ def _assert_constraints_feature_shape_prefix(
         rank = tf.rank(sizes)
 
         for feature_name, tensor in feature_set.features.items():
-          # Check that each tensor has greater or equal rank to the parent
-          # piece.
-          checks.append(tf.debugging.assert_greater_equal(
-              tf.rank(tensor), rank,
-              "Rank too small for {} feature '{}/{}'".format(
-                  set_type, set_name, feature_name)))
-
-          # Check the prefix shape of the tensor matches.
-          checks.append(tf.debugging.assert_equal(
-              tensor.shape[:rank], sizes,
-              "Invalid prefix shape for {} feature: {}/{}".format(
-                  set_type, set_name, feature_name)))
-
+          checks.extend((
+              tf.debugging.assert_greater_equal(
+                  tf.rank(tensor),
+                  rank,
+                  f"Rank too small for {set_type} feature '{set_name}/{feature_name}'",
+              ),
+              tf.debugging.assert_equal(
+                  tensor.shape[:rank],
+                  sizes,
+                  f"Invalid prefix shape for {set_type} feature: {set_name}/{feature_name}",
+              ),
+          ))
     return tf.group(*checks)
 
 
@@ -316,23 +311,37 @@ def _assert_constraints_edge_indices_range(
         flat_indices = (indices.flat_values
                         if isinstance(indices, tf.RaggedTensor)
                         else indices)
-        checks.append(tf.debugging.Assert(
-            tf.math.reduce_all(
-                tf.math.greater_equal(indices,
-                                      tf.constant(0, dtype=indices.dtype))),
-            ["Index underflow",
-             "edges/{} {} indices:".format(set_name, tag), flat_indices],
-            name="check_indices_underflow", summarize=-1))
+        checks.append(
+            tf.debugging.Assert(
+                tf.math.reduce_all(
+                    tf.math.greater_equal(indices,
+                                          tf.constant(0,
+                                                      dtype=indices.dtype))),
+                [
+                    "Index underflow",
+                    f"edges/{set_name} {tag} indices:",
+                    flat_indices,
+                ],
+                name="check_indices_underflow",
+                summarize=-1,
+            ))
 
         # Check the indices are smaller than the node tensor sizes.
         sizes = graph.node_sets[node_set_name].sizes
-        checks.append(tf.debugging.Assert(
-            tf.math.reduce_all(
-                tf.math.less(indices, tf.expand_dims(sizes, axis=-1))),
-            ["Index overflow",
-             "edges/{} {} indices:".format(set_name, tag), flat_indices,
-             "nodes/{} {}:".format(node_set_name, "size"), sizes],
-            name="check_indices_overflow", summarize=-1))
+        checks.append(
+            tf.debugging.Assert(
+                tf.math.reduce_all(
+                    tf.math.less(indices, tf.expand_dims(sizes, axis=-1))),
+                [
+                    "Index overflow",
+                    f"edges/{set_name} {tag} indices:",
+                    flat_indices,
+                    f"nodes/{node_set_name} size:",
+                    sizes,
+                ],
+                name="check_indices_overflow",
+                summarize=-1,
+            ))
     return tf.group(*checks)
 
 
@@ -346,10 +355,11 @@ def _assert_constraints_edge_shapes(graph: gt.GraphTensor) -> tf.Operation:
         raise ValueError(f"Adjacency type for constraints assertions must be "
                          f"HyperAdjacency: {adjacency}")
 
-      for tag, (_, indices) in sorted(adjacency.get_indices_dict().items()):
-        # Check the shape of the edge indices matches the size, and that the
-        # shape is scalar on the indices.
-        checks.append(tf.debugging.assert_equal(
-            indices.shape, edge_set.sizes,
-            "Invalid shape for edge indices: {}/{}".format(set_name, tag)))
+      checks.extend(
+          tf.debugging.assert_equal(
+              indices.shape,
+              edge_set.sizes,
+              f"Invalid shape for edge indices: {set_name}/{tag}",
+          ) for tag, (_,
+                      indices) in sorted(adjacency.get_indices_dict().items()))
     return tf.group(*checks)

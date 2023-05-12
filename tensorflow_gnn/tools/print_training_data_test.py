@@ -25,7 +25,7 @@ class PrintDataTest(tf.test.TestCase):
 
     # TODO(blais): Support sharded input in the print tool.
     FLAGS.graph_schema = schema_filename
-    FLAGS.examples = examples_filename + '-00000-of-00001'
+    FLAGS.examples = f'{examples_filename}-00000-of-00001'
     self.assertTrue(path.exists(FLAGS.examples))
     FLAGS.file_format = 'tfrecord'
     FLAGS.num_examples = 16

@@ -23,11 +23,10 @@ as_ragged = tf.ragged.constant
 class TfExampleParsingTestBase(tf.test.TestCase, parameterized.TestCase):
 
   def pbtxt_to_dataset(self, examples_pbtxt: List[str]) -> tf.data.Dataset:
-    serialized = []
-    for example_pbtxt in examples_pbtxt:
-      serialized.append(
-          pbtext.Merge(example_pbtxt, tf.train.Example()).SerializeToString())
-
+    serialized = [
+        pbtext.Merge(example_pbtxt, tf.train.Example()).SerializeToString()
+        for example_pbtxt in examples_pbtxt
+    ]
     return tf.data.Dataset.from_tensor_slices(serialized)
 
   def assertFieldsEqual(self, expected: gt.Fields, actual: gt.Fields):
@@ -644,10 +643,10 @@ class TfExampleParsingFromSchemaTest(TfExampleParsingTestBase):
 
 
 def _flatten_homogeneous_graph(graph: gt.GraphTensor) -> gc.Fields:
-  result = {}
-  for name, value in graph.context.features.items():
-    result[f'context/{name}'] = value
-
+  result = {
+      f'context/{name}': value
+      for name, value in graph.context.features.items()
+  }
   if graph.node_sets:
     node_set = graph.node_sets['node']
     for name, value in node_set.features.items():

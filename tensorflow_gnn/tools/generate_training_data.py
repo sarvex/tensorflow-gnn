@@ -43,13 +43,11 @@ def write_stream(generator: Iterator[str],
                  file_format: str):
   """Write examples produced by a generator to a file."""
 
-  if file_format == "tfrecord":
-    with tf.io.TFRecordWriter(filename) as writer:
-      for example in generator:
-        writer.write(example)
-
-  else:
+  if file_format != "tfrecord":
     raise ValueError(f"File format '{file_format}' not supported")
+  with tf.io.TFRecordWriter(filename) as writer:
+    for example in generator:
+      writer.write(example)
 
 
 def generate_training_data(schema_filename: str,

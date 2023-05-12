@@ -155,7 +155,7 @@ def static_repeat(value: Value, multiplier: int) -> Value:
     raise ValueError(f'`value` must have rank>1, got rank={value.shape.rank}')
 
   value = tf.expand_dims(value, 1)
-  dims = [1, int(multiplier)] + [1] * (value.shape.rank - 2)
+  dims = [1, multiplier] + [1] * (value.shape.rank - 2)
   result = tf.tile(value, dims)
   if is_ragged_tensor(result):
     return result.values

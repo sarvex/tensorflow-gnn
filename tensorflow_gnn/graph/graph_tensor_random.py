@@ -121,7 +121,7 @@ def typed_random_values(size: tf.Tensor, dtype: tf.dtypes.DType) -> tf.Tensor:
                                 dtype=tf.int32)
     values = tf.gather(letters, indices)
   else:
-    raise TypeError("Unsupported type for random values: {}".format(dtype))
+    raise TypeError(f"Unsupported type for random values: {dtype}")
   return values
 
 
